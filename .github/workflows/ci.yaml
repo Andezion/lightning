@@ -665,8 +665,8 @@ jobs:
       fail-fast: false
       matrix:
         CFG: [compile-gcc-O1]
-        GROUP: [1,2,3,4,5,6,7,8,9,10,11,12]
-        GROUP_COUNT: [12]
+        GROUP: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+        GROUP_COUNT: [16]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -704,7 +704,13 @@ jobs:
         env:
           SLOW_MACHINE: 1
           TEST_DEBUG: 1
-          PYTEST_OPTS: ${{ env.PYTEST_OPTS_BASE }} --test-group-random-seed=42
+          # Own seed (not the repo-wide 42) - with seed 42 and GROUP_COUNT=12,
+          # 9 of our 10 slowest tests landed in the same group (+-1700s
+          # combined), the consistent long pole and timeout-flake risk under
+          # valgrind. Simulated against the real collected test list - seed 11
+          # with GROUP_COUNT=16 spreads them so no group holds more than one
+          # test's worth of that time (+-366s the single slowest test)
+          PYTEST_OPTS: ${{ env.PYTEST_OPTS_BASE }} --test-group-random-seed=11
         run: |
           # -n $(nproc) rather than $(nproc)+1: one fewer parallel node-cluster
           # keeps peak RSS under the 16GB hosted-runner ceiling.
