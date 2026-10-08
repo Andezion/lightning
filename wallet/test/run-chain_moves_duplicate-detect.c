@@ -72,6 +72,11 @@ void connect_htlc_in(struct htlc_in_map *map UNNEEDED, struct htlc_in *hin UNNEE
 /* Generated stub for connect_htlc_out */
 void connect_htlc_out(struct htlc_out_map *map UNNEEDED, struct htlc_out *hout UNNEEDED)
 { fprintf(stderr, "connect_htlc_out called!\n"); abort(); }
+/* Generated stub for extra_tlvs_set_accountable */
+void extra_tlvs_set_accountable(const tal_t *ctx UNNEEDED,
+				struct tlv_field **extra_tlvs UNNEEDED,
+				bool accountable UNNEEDED)
+{ fprintf(stderr, "extra_tlvs_set_accountable called!\n"); abort(); }
 /* Generated stub for fatal */
 void   fatal(const char *fmt UNNEEDED, ...)
 { fprintf(stderr, "fatal called!\n"); abort(); }

@@ -14,6 +14,8 @@ custom_tlvs = None
 def on_htlc_accepted(htlc, onion, plugin, **kwargs):
     if 'extra_tlvs' in htlc:
         print(f"called htlc accepted hook with extra_tlvs: {htlc['extra_tlvs']}")
+    print(f"htlc accountable={htlc.get('accountable')}"
+          f" upgrade_accountability={onion.get('upgrade_accountability')}")
     print(f'returning continue with custom extra_tlvs: {custom_tlvs}')
     if custom_tlvs:
         return {"result": "continue", "extra_tlvs": custom_tlvs}

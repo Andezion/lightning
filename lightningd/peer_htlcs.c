@@ -1234,6 +1234,8 @@ static void htlc_accepted_hook_serialize(struct htlc_accepted_hook_payload *p,
 			json_add_hex_talarr(s, "payment_metadata",
 					    p->payload->payment_metadata);
 		}
+		json_add_bool(s, "upgrade_accountability",
+			      p->payload->upgrade_accountability);
 	}
 	json_add_hex_talarr(s, "next_onion", p->next_onion);
 	json_add_secret(s, "shared_secret", hin->shared_secret);
@@ -1251,6 +1253,7 @@ static void htlc_accepted_hook_serialize(struct htlc_accepted_hook_payload *p,
 	json_add_u32(s, "cltv_expiry", expiry);
 	json_add_s32(s, "cltv_expiry_relative", expiry - blockheight);
 	json_add_sha256(s, "payment_hash", &hin->payment_hash);
+	json_add_bool(s, "accountable", hin->accountable);
 	if (p->extra_tlvs_raw) {
 		json_add_hex_talarr(s, "extra_tlvs", p->extra_tlvs_raw);
 	}
@@ -1260,6 +1263,73 @@ static void htlc_accepted_hook_serialize(struct htlc_accepted_hook_payload *p,
 /**
  * Callback when a plugin answers to the htlc_accepted hook
  */
+/* BOLT-accountable #4:
+ * The reader:
+ *...
+ *  - If it is the final node:
+ *    - MUST return an error if:
+ *...
+ *      - `accountable` is set in the incoming `update_add_htlc` but `accountable` was not set in the invoice
+ *  - Otherwise:
+ *    - MUST return an error if:
+ *      - `accountable` is set in the incoming `update_add_htlc` but `upgrade_accountability` was not set in the onion payload or in `encrypted_recipient_data`
+ */
+/* FIXME!!!!: We only log for now: accountability is still a draft, and we don't
+ * want to fail payments over it until it's deployed (we never set the `accountable` invoice field yet, either) */
+static void check_incoming_accountable(const struct htlc_in *hin,
+				       const struct onion_payload *payload)
+{
+	struct channel *channel = hin->key.channel;
+
+	if (!hin->accountable)
+		return;
+
+	if (payload->final)
+		log_info(channel->log,
+			 "HTLC %"PRIu64" is accountable, but we don't offer"
+			 " accountable invoices: would fail it",
+			 hin->key.id);
+	else if (!payload->upgrade_accountability)
+		log_info(channel->log,
+			 "HTLC %"PRIu64" is accountable without"
+			 " upgrade_accountability in the onion: would fail it",
+			 hin->key.id);
+}
+
+/* BOLT-accountable #2:
+ * A sending node:
+ *...
+ *  - otherwise:
+ *...
+ *    - if `accountable` is present in the incoming `update_add_htlc`:
+ *      - MUST set `accountable`
+ *    - otherwise:
+ *      - if `upgrade_accountability` is present in the onion:
+ *        - MAY set `accountable`
+ *      - otherwise:
+ *        - MUST NOT set `accountable`
+ */
+static bool outgoing_accountable(const struct htlc_in *hin,
+				 const struct onion_payload *payload,
+				 const struct tlv_field *extra_tlvs)
+{
+	if (hin->accountable)
+		return true;
+
+	/* We dont upgrade ourselves (yet), but a plugin may have asked to, by returning extra_tlvs from htlc_accepted */
+	if (!extra_tlvs_accountable(extra_tlvs))
+		return false;
+
+	if (payload->upgrade_accountability)
+		return true;
+
+	log_unusual(hin->key.channel->log,
+		    "HTLC %"PRIu64": not setting accountable as requested"
+		    " by plugin, since onion has no upgrade_accountability",
+		    hin->key.id);
+	return false;
+}
+
 static void
 htlc_accepted_hook_final(struct htlc_accepted_hook_payload *request STEALS)
 {
@@ -1296,6 +1366,12 @@ htlc_accepted_hook_final(struct htlc_accepted_hook_payload *request STEALS)
 			extra_tlvs = NULL;
 		}
 
+		check_incoming_accountable(hin, request->payload);
+		extra_tlvs_set_accountable(request, &extra_tlvs,
+					   outgoing_accountable(hin,
+								request->payload,
+								extra_tlvs));
+
 		forward_htlc(hin, hin->cltv_expiry,
 			     request->payload->amt_to_forward,
 			     request->payload->outgoing_cltv,
@@ -1303,7 +1379,8 @@ htlc_accepted_hook_final(struct htlc_accepted_hook_payload *request STEALS)
 			     request->fwd_channel_id,
 			     serialize_onionpacket(tmpctx, rs->next),
 			     request->next_path_key, extra_tlvs);
-	} else
+	} else {
+		check_incoming_accountable(hin, request->payload);
 		handle_localpay(hin,
 				request->payload->amt_to_forward,
 				request->payload->outgoing_cltv,
@@ -1311,6 +1388,7 @@ htlc_accepted_hook_final(struct htlc_accepted_hook_payload *request STEALS)
 				request->invoice_msat,
 				request->payload->payment_secret,
 				request->payload->payment_metadata);
+	}
 
 	tal_free(request);
 }

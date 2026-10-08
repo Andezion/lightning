@@ -123,6 +123,30 @@ struct htlc_in *htlc_in_check(const struct htlc_in *hin, const char *abortstr)
 	return cast_const(struct htlc_in *, hin);
 }
 
+bool extra_tlvs_accountable(const struct tlv_field *extra_tlvs)
+{
+	for (size_t i = 0; i < tal_count(extra_tlvs); i++) {
+		if (extra_tlvs[i].numtype == UPDATE_ADD_HTLC_TLV_ACCOUNTABLE)
+			return true;
+	}
+	return false;
+}
+
+void extra_tlvs_set_accountable(const tal_t *ctx,
+				struct tlv_field **extra_tlvs,
+				bool accountable)
+{
+	if (!*extra_tlvs) {
+		if (!accountable)
+			return;
+		*extra_tlvs = tal_arr(ctx, struct tlv_field, 0);
+	}
+	tlvstream_del(extra_tlvs, UPDATE_ADD_HTLC_TLV_ACCOUNTABLE);
+	if (accountable)
+		tlvstream_set_raw(extra_tlvs, UPDATE_ADD_HTLC_TLV_ACCOUNTABLE,
+				  "", 0);
+}
+
 struct htlc_in *new_htlc_in(const tal_t *ctx,
 			    struct channel *channel, u64 id,
 			    struct amount_msat msat, u32 cltv_expiry,
@@ -151,6 +175,7 @@ struct htlc_in *new_htlc_in(const tal_t *ctx,
 		hin->extra_tlvs = tlv_field_arr_dup(hin, extra_tlvs);
 	else
 		hin->extra_tlvs = NULL;
+	hin->accountable = extra_tlvs_accountable(extra_tlvs);
 
 	hin->hstate = RCVD_ADD_COMMIT;
 	hin->badonion = 0;
@@ -302,6 +327,7 @@ struct htlc_out *new_htlc_out(const tal_t *ctx,
 		hout->extra_tlvs = tlv_field_arr_dup(hout, extra_tlvs);
 	else
 		hout->extra_tlvs = NULL;
+	hout->accountable = extra_tlvs_accountable(extra_tlvs);
 
 	hout->am_origin = am_origin;
 	if (am_origin) {

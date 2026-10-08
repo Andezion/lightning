@@ -26,6 +26,9 @@ struct onion_payload {
 	struct pubkey *path_key;
 	struct secret blinding_ss;
 
+	/* May we set `accountable` on the HTLC we forward?  From the payload, or from encrypted_recipient_data if blinded */
+	bool upgrade_accountability;
+
 	/* The raw TLVs contained in the payload. */
 	struct tlv_payload *tlv;
 };

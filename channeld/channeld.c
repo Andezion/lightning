@@ -5521,10 +5521,8 @@ static void resend_commitment(struct peer *peer, struct changed_htlc *last)
 							      h->extra_tlvs);
 			}
 			if (h->path_key) {
-				/* It is fine to just set the binded_path
-				 * independent of what is in tlv->fields as the
-				 * towire logic will serialize unknown fields
-				 * and known types seperately. */
+				/* handle_offer_htlc removed any blinded_path
+				 * from extra_tlvs, so this cant duplicate it */
 				tlvs->blinded_path = tal_dup(tlvs,
 							     struct pubkey,
 							     h->path_key);
@@ -6542,6 +6540,7 @@ static void handle_offer_htlc(struct peer *peer, const u8 *inmsg)
 			status_unusual("Malformed TLV type %"PRIu64": %s",
 				failedtype, tal_hex(tmpctx, extra_tlvs_raw));
 		}
+		tlvstream_del(&tlvs->fields, 0 /* blinded_path */);
 		extra_tlvs = tlvs->fields;
 	} else {
 		extra_tlvs = NULL;

@@ -1221,6 +1221,9 @@ static const struct db_migration dbmigrations[] = {
      /* Clamping is idempotent, so no revert needed */
      NULL, NULL},
     /* ^v26.09 */
+    /* BOLT-accountable #2 `accountable` flag of the update_add_htlc, kept so restarting doesn't change who's accountable for in-flight HTLCs */
+    {SQL("ALTER TABLE channel_htlcs ADD accountable INTEGER DEFAULT 0;"), NULL,
+     SQL("ALTER TABLE channel_htlcs DROP COLUMN accountable"), NULL},
 };
 
 const struct db_migration *get_db_migrations(size_t *num)

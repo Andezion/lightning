@@ -106,6 +106,11 @@ struct db_stmt *db_datastore_next(const tal_t *ctx UNNEEDED,
 /* Generated stub for db_datastore_update */
 void db_datastore_update(struct db *db UNNEEDED, const char **key UNNEEDED, const u8 *data UNNEEDED)
 { fprintf(stderr, "db_datastore_update called!\n"); abort(); }
+/* Generated stub for extra_tlvs_set_accountable */
+void extra_tlvs_set_accountable(const tal_t *ctx UNNEEDED,
+				struct tlv_field **extra_tlvs UNNEEDED,
+				bool accountable UNNEEDED)
+{ fprintf(stderr, "extra_tlvs_set_accountable called!\n"); abort(); }
 /* Generated stub for fatal */
 void   fatal(const char *fmt UNNEEDED, ...)
 { fprintf(stderr, "fatal called!\n"); abort(); }

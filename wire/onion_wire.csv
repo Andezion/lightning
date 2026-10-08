@@ -16,6 +16,7 @@ tlvtype,payload,payment_metadata,16
 tlvdata,payload,payment_metadata,payment_metadata,byte,...
 tlvtype,payload,total_amount_msat,18
 tlvdata,payload,total_amount_msat,total_msat,tu64,
+tlvtype,payload,upgrade_accountability,19
 subtype,blinded_path
 subtypedata,blinded_path,first_node_id,sciddir_or_pubkey,
 subtypedata,blinded_path,first_path_key,point,
@@ -29,6 +30,7 @@ tlvtype,encrypted_data_tlv,padding,1
 tlvdata,encrypted_data_tlv,padding,padding,byte,...
 tlvtype,encrypted_data_tlv,short_channel_id,2
 tlvdata,encrypted_data_tlv,short_channel_id,short_channel_id,short_channel_id,
+tlvtype,encrypted_data_tlv,upgrade_accountability,3
 tlvtype,encrypted_data_tlv,next_node_id,4
 tlvdata,encrypted_data_tlv,next_node_id,node_id,point,
 tlvtype,encrypted_data_tlv,path_id,6

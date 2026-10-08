@@ -70,4 +70,7 @@ void tlvstream_set_short_channel_id(struct tlv_field **stream, u64 type,
 void tlvstream_set_tu64(struct tlv_field **stream, u64 type, u64 value);
 void tlvstream_set_tu32(struct tlv_field **stream, u64 type, u32 value);
 
+/* Remove field @type from @stream, if present */
+void tlvstream_del(struct tlv_field **stream, u64 type);
+
 #endif /* LIGHTNING_WIRE_TLVSTREAM_H */

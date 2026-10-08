@@ -61,6 +61,9 @@ struct htlc_in {
 
 	/* Incommimg extra update_add_htlc_tlv tlvs */
 	struct tlv_field *extra_tlvs;
+
+	/* Did they hold us accountable for its timely resolution?  Unlike extra_tlvs, this survives restart */
+	bool accountable;
 };
 
 struct htlc_out {
@@ -112,7 +115,26 @@ struct htlc_out {
 
 	/* Extra tlvs that are extended to the update_add_htlc_tlvs */
 	struct tlv_field *extra_tlvs;
+
+	/* Do we hold them accountable for its timely resolution?  Unlike extra_tlvs, this survives restart */
+	bool accountable;
 };
+
+/* BOLT-accountable #2:
+ * 1. `tlv_stream`: `update_add_htlc_tlvs`
+ * 2. types:
+ *...
+ *     1. type: 1 (`accountable`)
+ */
+#define UPDATE_ADD_HTLC_TLV_ACCOUNTABLE 1
+
+/* Is `accountable` among these update_add_htlc tlvs? */
+bool extra_tlvs_accountable(const struct tlv_field *extra_tlvs);
+
+/* Make `accountable` present in *@extra_tlvs (allocated off @ctx if NULL) iff @accountable */
+void extra_tlvs_set_accountable(const tal_t *ctx,
+				struct tlv_field **extra_tlvs,
+				bool accountable);
 
 static inline const struct htlc_key *keyof_htlc_in(const struct htlc_in *in)
 {

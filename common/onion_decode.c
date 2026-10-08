@@ -359,6 +359,14 @@ struct onion_payload *onion_decode(const tal_t *ctx,
 				goto field_bad;
 		}
 
+		/* BOLT-accountable #4:
+		 * The creator of `encrypted_recipient_data` (usually, the recipient of payment):
+		 *...
+		 *  - if the blinded route will be used in an invoice with an `accountable` field set:
+		 *    - MUST include `upgrade_accountability` for every node in the blinded route
+		 */
+		p->upgrade_accountability = (enc->upgrade_accountability != NULL);
+
 		/* We stash path_id (if present and valid!) in payment_secret for final hop */
 		if (p->final && tal_bytelen(enc->path_id) == sizeof(*p->payment_secret)) {
 			p->payment_secret = tal_steal(p,
@@ -453,6 +461,14 @@ struct onion_payload *onion_decode(const tal_t *ctx,
 		p->payment_metadata = NULL;
 
 	p->path_key = NULL;
+
+	/* BOLT-accountable #4:
+	 * The writer of the TLV `payload`:
+	 *...
+	 *  - if the recipient provided an invoice with an `accountable` field set:
+	 *    - MUST include `upgrade_accountability` for every node in the non-blinded part of the route
+	 */
+	p->upgrade_accountability = (p->tlv->upgrade_accountability != NULL);
 
 	return p;
 

@@ -59,10 +59,21 @@ void tlvstream_set_raw(struct tlv_field **stream, u64 type, const void *value TA
 		e->value = tal_dup_arr(*stream, u8, value, e->length, 0);
 	} else {
 		/* If we haven't found it insert it insead. */
+		f.meta = NULL;
 		f.length = valuelen;
 		f.numtype = type;
 		f.value = tal_dup_arr(*stream, u8, value, f.length, 0);
 		tal_arr_expand(stream, f);
+	}
+}
+
+void tlvstream_del(struct tlv_field **stream, u64 type)
+{
+	struct tlv_field *e = tlvstream_get_raw(*stream, type);
+
+	if (e) {
+		tal_free(e->value);
+		tal_arr_remove(stream, e - *stream);
 	}
 }
 

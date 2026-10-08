@@ -13,7 +13,7 @@ from utils import (
     expected_channel_features, account_balance,
     check_coin_moves, first_channel_id, EXPERIMENTAL_DUAL_FUND,
     mine_funding_to_announce, VALGRIND, first_scid,
-    serialize_payload_tlv, tu64_encode
+    serialize_payload_tlv, serialize_payload_final_tlv, tu64_encode
 )
 from tests.test_wallet import HsmTool, write_all, WAIT_TIMEOUT
 
@@ -2913,6 +2913,80 @@ def test_htlc_accepted_hook_malformedtlvs(node_factory):
     # Here shouldn't use `pay` command because l2 should fail with a broken log.
     l1.rpc.sendpay(route, phash, payment_secret=inv['payment_secret'])
     assert l2.daemon.wait_for_log("BROKEN.*htlc_accepted_hook returned bad extra_tlvs")
+
+
+def test_htlc_accountable(node_factory):
+    plugin = os.path.join(os.path.dirname(__file__), 'plugins/htlc_accepted-customtlv.py')
+    hold_plugin = os.path.join(os.path.dirname(__file__), 'plugins/htlc_accepted-hold.py')
+    l1, l2, l3, l4 = node_factory.line_graph(4, opts=[{}, {'plugin': plugin},
+                                                      {'plugin': plugin},
+                                                      {'plugin': plugin}],
+                                             wait_for_announce=True)
+
+    def send_upgrade_at_l2(inv, amt):
+        """Pay l4 with upgrade_accountability in l2's payload only"""
+        route = l1.rpc.getroute(l4.info['id'], amt, 1)['route']
+        blockheight = l1.rpc.getinfo()['blockheight']
+
+        l2_payload = TlvPayload.from_bytes(serialize_payload_tlv(route[1]['amount_msat'],
+                                                                 route[1]['delay'],
+                                                                 route[1]['channel'],
+                                                                 blockheight))
+        l2_payload.add_field(19, b'')
+        hops = [{'pubkey': route[0]['id'],
+                 'payload': l2_payload.to_bytes().hex()},
+                {'pubkey': route[1]['id'],
+                 'payload': serialize_payload_tlv(route[2]['amount_msat'],
+                                                  route[2]['delay'],
+                                                  route[2]['channel'],
+                                                  blockheight).hex()},
+                {'pubkey': route[2]['id'],
+                 'payload': serialize_payload_final_tlv(amt, route[2]['delay'], amt,
+                                                        blockheight,
+                                                        inv['payment_secret']).hex()}]
+        onion = l1.rpc.createonion(hops=hops, assocdata=inv['payment_hash'])
+        l1.rpc.sendonion(onion=onion['onion'], first_hop=route[0],
+                         payment_hash=inv['payment_hash'],
+                         shared_secrets=onion['shared_secrets'])
+
+    # l2's plugin asks to set accountable (type 1, empty)
+    l2.rpc.setcustomtlvs(tlvs="0100")
+
+    # normal payment - the onion doesn't allow the upgrade, so l2 refuses
+    inv = l4.rpc.invoice(1000, 'accountable-noupgrade', '')['bolt11']
+    l1.rpc.xpay(inv)
+    l2.daemon.wait_for_log("not setting accountable as requested by plugin,"
+                           " since onion has no upgrade_accountability")
+    l3.daemon.wait_for_log("htlc accountable=False upgrade_accountability=False")
+    l4.daemon.wait_for_log("htlc accountable=False upgrade_accountability=False")
+
+    # now l2 may upgrade, and l3 must keep it even though its own payload doesn't allow upgrading
+    inv = l4.rpc.invoice(1000, 'accountable-upgrade', '')
+    send_upgrade_at_l2(inv, 1000)
+    l3.daemon.wait_for_log("htlc accountable=True upgrade_accountability=False")
+    l3.daemon.wait_for_log("is accountable without upgrade_accountability"
+                           " in the onion: would fail it")
+    l4.daemon.wait_for_log("htlc accountable=True upgrade_accountability=False")
+    l4.daemon.wait_for_log("is accountable, but we don't offer accountable"
+                           " invoices: would fail it")
+
+    # only logged, so the payment still goes through
+    assert l1.rpc.waitsendpay(inv['payment_hash'])['status'] == 'complete'
+
+    # the flag survives a restart - l4 holds the HTLC, restarts, and replays the htlc_accepted hook from what's in its db
+    l4.daemon.opts['plugin'] = [plugin, hold_plugin]
+    l4.rpc.plugin_start(hold_plugin)
+    preimage = '11' * 32
+    inv = l4.rpc.invoice(1000, 'accountable-restart', '', preimage=preimage)
+    send_upgrade_at_l2(inv, 1000)
+    l4.daemon.wait_for_log("htlc accountable=True upgrade_accountability=False")
+    l4.daemon.wait_for_log("holding htlc")
+
+    l4.restart()
+    l4.daemon.wait_for_log("htlc accountable=True")
+    l4.daemon.wait_for_log("holding htlc")
+    l4.rpc.releasehtlc(preimage)
+    assert l1.rpc.waitsendpay(inv['payment_hash'])['status'] == 'complete'
 
 
 def test_hook_dep(node_factory):

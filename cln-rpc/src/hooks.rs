@@ -239,6 +239,8 @@ pub mod events{
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct HtlcAcceptedHtlc {
         #[serde(skip_serializing_if = "Option::is_none")]
+        pub accountable: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub extra_tlvs: Option<String>,
         pub amount_msat: Amount,
         pub cltv_expiry: u32,
@@ -292,6 +294,8 @@ pub mod events{
         pub short_channel_id: Option<ShortChannelId>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub total_msat: Option<Amount>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub upgrade_accountability: Option<bool>,
         pub next_onion: String,
         pub payload: String,
         pub shared_secret: Secret,

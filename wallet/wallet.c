@@ -3388,8 +3388,9 @@ void wallet_htlc_save_in(struct wallet *wallet,
 				 " routing_onion,"
 				 " received_time,"
 				 " min_commit_num, "
-				 " fail_immediate) VALUES "
-				 "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"));
+				 " fail_immediate,"
+				 " accountable) VALUES "
+				 "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"));
 
 	in->dbid = htlcs_index_created(wallet->ld,
 				       in->key.id,
@@ -3426,6 +3427,7 @@ void wallet_htlc_save_in(struct wallet *wallet,
 					   chan->next_index[REMOTE]-1));
 
 	db_bind_int(stmt, in->fail_immediate);
+	db_bind_int(stmt, in->accountable);
 
 	db_exec_prepared_v2(take(stmt));
 }
@@ -3458,8 +3460,9 @@ void wallet_htlc_save_out(struct wallet *wallet,
 		" partid,"
 		" groupid,"
 		" fees_msat,"
-		" min_commit_num"
-		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?);"));
+		" min_commit_num,"
+		" accountable"
+		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?);"));
 
 	out->dbid = htlcs_index_created(wallet->ld,
 					out->key.id,
@@ -3502,6 +3505,7 @@ void wallet_htlc_save_out(struct wallet *wallet,
 	db_bind_amount_msat(stmt, out->fees);
 	db_bind_u64(stmt, min_u64(chan->next_index[LOCAL]-1,
 					     chan->next_index[REMOTE]-1));
+	db_bind_int(stmt, out->accountable);
 
 	db_exec_prepared_v2(take(stmt));
 }
@@ -3610,6 +3614,9 @@ static bool wallet_stmt2htlc_in(struct channel *channel,
 	 * of a payment.
 	 */
 	in->extra_tlvs = NULL;
+	/* ... except the one we do save */
+	in->accountable = db_col_int(stmt, "accountable");
+	extra_tlvs_set_accountable(in, &in->extra_tlvs, in->accountable);
 
 	db_col_sha256(stmt, "payment_hash", &in->payment_hash);
 
@@ -3689,6 +3696,9 @@ static bool wallet_stmt2htlc_out(struct wallet *wallet,
 	 * of a payment.
 	 */
 	out->extra_tlvs = NULL;
+	/* ... except the one we do save, so a retransmit still carries it */
+	out->accountable = db_col_int(stmt, "accountable");
+	extra_tlvs_set_accountable(out, &out->extra_tlvs, out->accountable);
 
 	out->preimage = db_col_optional(out, stmt, "payment_key", preimage);
 
@@ -3807,6 +3817,7 @@ bool wallet_htlcs_load_in_for_channel(struct wallet *wallet,
 					     ", received_time"
 					     ", we_filled"
 					     ", fail_immediate"
+					     ", accountable"
 					     " FROM channel_htlcs"
 					     " WHERE direction= ?"
 					     " AND channel_id= ?"
@@ -3860,6 +3871,7 @@ bool wallet_htlcs_load_out_for_channel(struct wallet *wallet,
 					     ", localfailmsg"
 					     ", groupid"
 					     ", fees_msat"
+					     ", accountable"
 					     " FROM channel_htlcs"
 					     " WHERE direction = ?"
 					     " AND channel_id = ?"
