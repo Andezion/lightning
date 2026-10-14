@@ -15804,6 +15804,10 @@
             "added": "pre-v0.10.1",
             "deprecated": null
         },
+        "htlc_accepted.htlc.accountable": {
+            "added": "v26.09",
+            "deprecated": null
+        },
         "htlc_accepted.htlc.amount_msat": {
             "added": "v0.12.0",
             "deprecated": null
@@ -15882,6 +15886,10 @@
         },
         "htlc_accepted.onion.type": {
             "added": "pre-v0.10.1",
+            "deprecated": null
+        },
+        "htlc_accepted.onion.upgrade_accountability": {
+            "added": "v26.09",
             "deprecated": null
         },
         "htlc_accepted.payload": {

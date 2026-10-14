@@ -43668,6 +43668,14 @@
                   "Only present if included by the sender."
                 ]
               },
+              "upgrade_accountability": {
+                "added": "v26.09",
+                "type": "boolean",
+                "description": [
+                  "Whether the onion payload (or the 'encrypted_recipient_data' in a blinded path) allows us to set 'accountable' on the HTLC we forward (BOLTs PR #1280, draft)",
+                  "Only present if the payload was successfully parsed"
+                ]
+              },
               "next_onion": {
                 "type": "hex",
                 "description": [
@@ -43736,6 +43744,13 @@
                 "type": "hash",
                 "description": [
                   "The payment hash used to identify the payment."
+                ]
+              },
+              "accountable": {
+                "added": "v26.09",
+                "type": "boolean",
+                "description": [
+                  "Whether the peer set `accountable` on this HTLC (BOLTs PR #1280, draft): we're then held accountable for resolving it quickly, and will set `accountable` if we forward it."
                 ]
               },
               "extra_tlvs": {
@@ -43817,7 +43832,8 @@
             "added": "v25.09",
             "type": "hex",
             "description": [
-              "Replacement TLV stream for forwarded HTLCs."
+              "Replacement TLV stream for forwarded HTLCs.",
+              "`accountable` (type 1) is always kept if the incoming HTLC had it, and only added if the onion has `upgrade_accountability`."
             ]
           },
           "invoice_msat": {
